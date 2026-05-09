@@ -12,8 +12,8 @@ from src.io.tts import synthesize_to_queue
 from src.io.playback import start_playback_thread
 from src.io.audio_utils import OrderedAudioQueue
 
-# SENTENCE_END = re.compile(r'(?<=[.!?,:;])\s')
-SENTENCE_END = re.compile(r'(?<=[.!?])\s')
+SENTENCE_END = re.compile(r'(?<=[.!?,:;])\s')
+# SENTENCE_END = re.compile(r'(?<=[.!?])\s')
 executor = ThreadPoolExecutor(max_workers=3)  # synthesis threads
 WORD_THRESHOLD = 6
 
@@ -48,11 +48,11 @@ def handle_chat_model_stream(event, token_buffer, full_reply, futures, audio_que
             sentence_index += 1
     
     # Word threshold — boundary ka wait mat karo
-    # elif len(token_buffer.split()) >= WORD_THRESHOLD:
-    #     sentence = token_buffer.strip()
-    #     token_buffer = ""
-    #     fire_tts(sentence, audio_queue, futures, sentence_index)
-    #     sentence_index += 1
+    elif len(token_buffer.split()) >= WORD_THRESHOLD:
+        sentence = token_buffer.strip()
+        token_buffer = ""
+        fire_tts(sentence, audio_queue, futures, sentence_index)
+        sentence_index += 1
 
     return token_buffer, full_reply, sentence_index
 

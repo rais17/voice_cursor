@@ -22,10 +22,16 @@ def run_terminal_command(command: str) -> str:
 
 @tool
 def read_file(file_path: str) -> str:
-    """Read the contents of a file at the given path."""
+    """Read the contents of a file with line numbers."""
     try:
         with open(file_path, "r", encoding="utf-8") as f:
-            return f.read()
+            lines = f.readlines()
+        
+        numbered = ""
+        for i, line in enumerate(lines, start=1):
+            numbered += f"{i:4d} | {line}"
+        
+        return numbered
     except FileNotFoundError:
         return f"File not found: {file_path}"
     except Exception as e:
@@ -101,18 +107,56 @@ def delete_file(file_path: str) -> str:
         return f"Error deleting file: {e}"
 
 @tool
-def get_weather(city: str) -> str:
-    """Get the current weather for a city."""
-    import httpx
-    import os
-    api_key = os.getenv("WEATHER_API")
-    response = httpx.get(
-        "https://api.openweathermap.org/data/2.5/weather",
-        params={"q": city, "appid": api_key}
-    )
-    data = response.json()
-    return f"The weather in {city} is {data['main']['temp']}"
-
+def apply_diff(file_path: str, start_line: int, end_line: int, new_content: str) -> str:
+    """
+    Replace lines start_line to end_line (inclusive) in a file with new_content.
+    Use read_file first to see line numbers, then call this tool.
+    
+    Args:
+        file_path: Path to the file
+        start_line: First line to replace (1-indexed)
+        end_line: Last line to replace (1-indexed, inclusive)
+        new_content: New content to insert (no need to add newlines at start/end)
+    """
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        
+        total_lines = len(lines)
+        
+        # Validation
+        if start_line < 1 or start_line > total_lines:
+            return f"Error: start_line {start_line} out of range (file has {total_lines} lines)"
+        if end_line < start_line or end_line > total_lines:
+            return f"Error: end_line {end_line} out of range (file has {total_lines} lines)"
+        
+        # Old content for diff display
+        old_lines = lines[start_line - 1:end_line]
+        old_content = "".join(old_lines).rstrip()
+        
+        # New content prepare
+        new_lines = new_content.rstrip() + "\n"
+        
+        # Apply
+        updated = lines[:start_line - 1] + [new_lines] + lines[end_line:]
+        
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.writelines(updated)
+        
+        # Show diff
+        diff = f"✅ Applied to {file_path} (lines {start_line}-{end_line})\n\n"
+        diff += "--- REMOVED ---\n"
+        diff += old_content + "\n\n"
+        diff += "+++ ADDED +++\n"
+        diff += new_content.rstrip()
+        
+        return diff
+    
+    except FileNotFoundError:
+        return f"File not found: {file_path}"
+    except Exception as e:
+        return f"Error applying diff: {e}"
+    
 tools = [
     read_file,
     write_file,
@@ -120,6 +164,7 @@ tools = [
     list_files,
     # create_file,
     delete_file,
-    get_weather,
-    run_terminal_command
+    # get_weather,
+    run_terminal_command,
+    apply_diff
 ]
