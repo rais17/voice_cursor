@@ -129,6 +129,12 @@ async def stream_response(user_text: str, config: dict, hss: bool = False, hqc: 
 def run():
     print("Voice Cursor started. Speak to interact.\n")
 
+    workspace = input("Enter project path (or press Enter to skip): ").strip()
+    if workspace:
+        from src.workspace import workspace_manager
+        result = workspace_manager.set(workspace)
+        print(result)
+
     thread_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}
 

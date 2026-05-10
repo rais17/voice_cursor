@@ -2,7 +2,7 @@ from langgraph.graph import StateGraph, START, MessagesState
 from langgraph.prebuilt import ToolNode, tools_condition
 from src.config import chat_model, mongo_client
 from src.tools import tools
-from src.prompt.system_prompt import SYSTEM_PROMPT
+from src.prompt.system_prompt import get_system_prompt
 from langchain_core.messages import SystemMessage
 from langgraph.checkpoint.mongodb import MongoDBSaver
 
@@ -12,7 +12,7 @@ def create_voice_agent():
     model = chat_model.bind_tools(tools)
 
     def llm_node(state: MessagesState):
-        messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
+        messages = [SystemMessage(content=get_system_prompt())] + state["messages"]
         response = model.invoke(messages)
         return {"messages": [response]}
 

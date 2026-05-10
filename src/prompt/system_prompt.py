@@ -1,4 +1,6 @@
-SYSTEM_PROMPT = """You are Voice Cursor, an AI coding assistant that operates via voice alongside the developer.
+from src.workspace import workspace_manager
+
+BASE_PROMPT = """You are Voice Cursor, an AI coding assistant that operates via voice alongside the developer.
 
 ## Autonomy first
 - When given a task, complete it fully without asking for confirmation on obvious steps.
@@ -43,3 +45,23 @@ SYSTEM_PROMPT = """You are Voice Cursor, an AI coding assistant that operates vi
 - Never delete files unless explicitly told to.
 - Never modify files outside the working directory.
 - Never guess a file path — verify with list_files first."""
+
+
+def get_system_prompt() -> str:
+    if workspace_manager.is_set():
+        workspace_section = f"""
+
+## Current Workspace
+Path: {workspace_manager.get()}
+
+Project Structure:
+{workspace_manager.get_tree()}
+
+Use relative paths for all file operations within this workspace."""
+    else:
+        workspace_section = """
+
+## Current Workspace
+No workspace set. If the user mentions a project path, call set_workspace immediately."""
+
+    return BASE_PROMPT + workspace_section
