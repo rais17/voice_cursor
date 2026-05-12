@@ -3,16 +3,22 @@ def add_numbers(a, b):
     assert isinstance(b, (int, float)), 'Input must be a number'
     return a + b
 
+# Function to subtract two numbers
+# a: first number, should be int or float
+# b: second number, should be int or float
+# Ensures both inputs are either integers or floats
+# Returns the result of subtracting b from a
 def subtract_numbers(a, b):
-    assert isinstance(a, (int, float)), 'Input must be a number'
-    assert isinstance(b, (int, float)), 'Input must be a number'
-    return a - b
+    assert isinstance(a, (int, float)), 'Input must be a number'  # Check if 'a' is a number
+    assert isinstance(b, (int, float)), 'Input must be a number'  # Check if 'b' is a number
+    return a - b  # Perform subtraction and return the result
 
-    return a * b
+
 def multiply_numbers(a, b):
     assert isinstance(a, (int, float)), 'Input must be a number'
     assert isinstance(b, (int, float)), 'Input must be a number'
     return a * b
+
 def divide_numbers(a, b):
     assert isinstance(a, (int, float)), 'Input must be a number'
     assert isinstance(b, (int, float)), 'Input must be a number'
