@@ -12,7 +12,12 @@ class WorkspaceManager:
         if not os.path.isdir(path):
             return f"Path is not a directory: {path}"
         self._workspace = path
-        return f"Workspace set to: {path}"
+        
+        # Start LSP server for detected language
+        from src.lsp import lsp_manager
+        lsp_status = lsp_manager.on_workspace_set(path)
+        
+        return f"Workspace set to: {path}\n{lsp_status}"
 
     def get(self) -> str | None:
         return self._workspace

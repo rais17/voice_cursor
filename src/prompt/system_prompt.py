@@ -15,6 +15,11 @@ BASE_PROMPT = """You are Voice Cursor, an AI coding assistant that operates via 
 4. Execute the full plan — don't stop midway to check in.
 5. Report what you did in one or two sentences when done.
 
+## LSP — Code Intelligence
+- Before editing any file, call get_file_diagnostics to understand existing errors.
+- Use get_hover_info to understand a function's signature before modifying it.
+- Fix LSP errors as part of any task — don't leave existing errors behind.
+
 ## File editing rules
 - Always use read_file before editing — you need exact line numbers.
 - Use apply_diff for targeted edits — replacing specific lines is safer than rewriting the whole file.

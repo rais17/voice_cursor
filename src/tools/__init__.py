@@ -2,6 +2,66 @@ import os
 import subprocess
 from langchain_core.tools import tool
 from src.workspace import workspace_manager
+from src.lsp import lsp_manager
+
+@tool
+def get_file_diagnostics(file_path: str) -> str:
+    """
+    Get errors and warnings for a file using LSP.
+    Always call this before editing a file to understand existing issues.
+    Returns line numbers, severity, and error messages.
+    """
+    if not lsp_manager.is_running():
+        return "LSP server not running. Set workspace first."
+
+    client = lsp_manager.get_client()
+    full_path = workspace_manager.resolve(file_path)
+
+    # Read file content — LSP needs it to analyze
+    try:
+        with open(full_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except FileNotFoundError:
+        return f"File not found: {full_path}"
+
+    # Tell LSP server this file is open
+    client.open_file(full_path, content)
+
+    # Get diagnostics
+    diagnostics = client.get_diagnostics(full_path)
+
+    if not diagnostics:
+        return f"No errors or warnings found in {file_path}"
+
+    lines = [f"Found {len(diagnostics)} issue(s) in {file_path}:"]
+    for d in diagnostics:
+        lines.append(f"  Line {d['line']} [{d['severity']}]: {d['message']}")
+
+    return "\n".join(lines)
+
+
+@tool
+def get_hover_info(file_path: str, line: int) -> str:
+    """
+    Get function signature, type info, or documentation at a specific line.
+    Use this to understand what a function does before modifying it.
+    """
+    if not lsp_manager.is_running():
+        return "LSP server not running. Set workspace first."
+
+    client = lsp_manager.get_client()
+    full_path = workspace_manager.resolve(file_path)
+
+    try:
+        with open(full_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except FileNotFoundError:
+        return f"File not found: {full_path}"
+
+    client.open_file(full_path, content)
+    info = client.get_hover(full_path, line)
+
+    return info if info else f"No hover info at line {line}"
 
 @tool
 def set_workspace(path: str) -> str:
@@ -134,4 +194,6 @@ tools = [
     apply_diff,
     set_workspace,
     get_workspace,
+    get_file_diagnostics,
+    get_hover_info
 ]
