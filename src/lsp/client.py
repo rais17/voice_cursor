@@ -4,6 +4,11 @@ import subprocess
 import threading
 from pathlib import Path
 from typing import Any
+# from pathlib import Path
+import platform
+
+from langsmith import traceable
+
 
 
 class LSPClient:
@@ -16,6 +21,7 @@ class LSPClient:
         self._pending = {}
         self._responses = {}
         self._diagnostics = {}
+        self._diagnostic_events = {}
         self._lock = threading.Lock()
         self._reader_thread = None
         self._running = False
@@ -49,6 +55,10 @@ class LSPClient:
                 daemon=True
             )
             self._reader_thread.start()
+            
+            # Add this
+            self._stderr_thread = threading.Thread(target=self._read_stderr, daemon=True)
+            self._stderr_thread.start()
 
             self._initialize(workspace_path)
             return True
@@ -56,6 +66,12 @@ class LSPClient:
         except Exception as e:
             print(f"[LSP] Failed to start {self._config.name}: {e}")
             return False
+        
+    def _read_stderr(self):
+        print("[LSP STDERR THREAD] started")  # add this
+        for line in self._process.stderr:
+            print(f"[LSP STDERR] {line.decode(errors='replace').strip()}")
+
 
     def stop(self):
         self._running = False
@@ -126,7 +142,8 @@ class LSPClient:
                 message = self._read_message()
                 if message:
                     self._handle_message(message)
-            except Exception:
+            except Exception as e:  
+                print(f"[LSP READ ERROR] {e}")
                 break
 
     def _read_message(self) -> dict | None:
@@ -149,9 +166,15 @@ class LSPClient:
         body = self._process.stdout.read(content_length)
         return json.loads(body.decode("utf-8"))
 
+    @traceable
     def _handle_message(self, message: dict):
+        
+        print(f"[LSP MSG] {message.get('method', 'response')} id={message.get('id')}")
+        print("DEBUG__message", message)
         msg_id = message.get("id")
         method = message.get("method", "")
+        
+        print(f"[LSP MSG] method={method} id={msg_id}")  # debug
 
         if msg_id is not None and "result" in message:
             with self._lock:
@@ -164,7 +187,11 @@ class LSPClient:
             params = message.get("params", {})
             uri = params.get("uri", "")
             diagnostics = params.get("diagnostics", [])
+            print(f"[LSP DIAG] uri={uri} count={len(diagnostics)}")  # debug
             self._diagnostics[uri] = diagnostics
+            event = self._diagnostic_events.get(uri)
+            if event:
+                event.set()
 
     # ==========================================
     # LSP Handshake
@@ -190,11 +217,16 @@ class LSPClient:
     # Public API
     # ==========================================
 
+    @traceable
     def open_file(self, file_path: str, content: str):
         uri = self._path_to_uri(file_path)
         
-        # Clear old diagnostics — fresh analysis ke liye
+        # Reset event and diagnostics before sending
+        event = threading.Event()
+        self._diagnostic_events[uri] = event
         self._diagnostics.pop(uri, None)
+        
+        print(f"[LSP OPEN] {uri}")
         
         self._send_notification("textDocument/didOpen", {
             "textDocument": {
@@ -204,17 +236,19 @@ class LSPClient:
                 "text": content
             }
         })
+        
+        # self._send_notification("textDocument/didChange", {
+        #     "textDocument": {"uri": uri, "version": 2},
+        #     "contentChanges": [{"text": content}]
+        # })
 
+    @traceable
     def get_diagnostics(self, file_path: str, timeout: float = 5.0) -> list[dict]:
-        import time
         uri = self._path_to_uri(file_path)
         
-        # Wait until diagnostics arrive or timeout
-        start = time.time()
-        while time.time() - start < timeout:
-            if uri in self._diagnostics:
-                break
-            time.sleep(0.2)
+        event = self._diagnostic_events.get(uri)
+        if event:
+            event.wait(timeout=timeout)
         
         raw = self._diagnostics.get(uri, [])
         return self._format_diagnostics(raw)
@@ -241,11 +275,16 @@ class LSPClient:
     def _path_to_uri(self, path: str) -> str:
         try:
             resolved = Path(path).resolve()
-            if sys.platform == "win32":
+
+            if platform.system() == "Windows":
+                print(f"DEBUG__Resolved path 1: {resolved}")
                 return "file:///" + str(resolved).replace("\\", "/")
+
+            print(f"DEBUG__Resolved path 2: {resolved}")
             return resolved.as_uri()
         except Exception:
             # Fallback — direct path use karo
+            print(f"WARNING: Failed to resolve path {path}, using fallback URI")
             clean = str(path).replace("\\", "/")
             return f"file:///{clean}"
 

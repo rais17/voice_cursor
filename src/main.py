@@ -139,7 +139,8 @@ def run():
     config = {"configurable": {"thread_id": thread_id}}
 
     while True:
-        user_text = transcribe_streaming()
+        # user_text = transcribe_streaming()
+        user_text = input("Please enter your message:\nYou: ").strip()  # fallback to text input
         if not user_text.strip():
             continue
 

@@ -1,16 +1,20 @@
 import os
 import subprocess
 from langchain_core.tools import tool
+from langsmith import traceable
 from src.workspace import workspace_manager
 from src.lsp import lsp_manager
 
 @tool
+@traceable
 def get_file_diagnostics(file_path: str) -> str:
     """
-    Get errors and warnings for a file using LSP.
-    Always call this before editing a file to understand existing issues.
-    Returns line numbers, severity, and error messages.
+    REQUIRED: Call this before editing any file.
+    Gets real-time errors and warnings using LSP analysis.
+    Returns line numbers and error messages for all issues found.
+    Example: get_file_diagnostics("src/tools.py") before applying any diff to tools.py.
     """
+    print(f"DEBUG__get_file_diagnostics called with: {file_path}")
     if not lsp_manager.is_running():
         return "LSP server not running. Set workspace first."
 
@@ -25,10 +29,13 @@ def get_file_diagnostics(file_path: str) -> str:
         return f"File not found: {full_path}"
 
     # Tell LSP server this file is open
+    print(f"DEBUG__content: {content}")  # debug
     client.open_file(full_path, content)
 
     # Get diagnostics
     diagnostics = client.get_diagnostics(full_path)
+    
+    print(f"DEBUG__diagnostics for {full_path}: {diagnostics}")  # debug
 
     if not diagnostics:
         return f"No errors or warnings found in {file_path}"
