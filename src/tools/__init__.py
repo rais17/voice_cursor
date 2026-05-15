@@ -9,9 +9,9 @@ from src.utils import _find_symbol_position
 @tool
 def get_definition_location(file_path: str, symbol: str) -> str:
     """
-    Resolves where a symbol is actually defined — use for cross-file navigation.
-    Especially useful for imported functions and classes before modifying them.
-    Example: get_definition_location("src/utils.py", "my_function") to find where my_function is defined in utils.py.
+    Find exactly where a function, class, or variable is defined.
+    MUST be called before modifying any symbol to locate its source file and line.
+    Example: get_definition_location("src/tools/__init__.py", "_find_symbol_position")
     """
     
     print(f"DEBUG___get_definition_location")
@@ -236,5 +236,6 @@ tools = [
     set_workspace,
     get_workspace,
     get_file_diagnostics,
-    get_hover_info
+    get_hover_info,
+    get_definition_location
 ]

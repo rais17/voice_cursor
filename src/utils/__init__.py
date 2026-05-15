@@ -1,4 +1,5 @@
 import ast
+
 def _find_symbol_position(content: str, symbol: str) -> tuple[int, int] | None:
     try:
         tree = ast.parse(content)
