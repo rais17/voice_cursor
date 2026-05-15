@@ -4,6 +4,44 @@ from langchain_core.tools import tool
 from langsmith import traceable
 from src.workspace import workspace_manager
 from src.lsp import lsp_manager
+from src.utils import _find_symbol_position
+
+@tool
+def get_definition_location(file_path: str, symbol: str) -> str:
+    """
+    Resolves where a symbol is actually defined — use for cross-file navigation.
+    Especially useful for imported functions and classes before modifying them.
+    Example: get_definition_location("src/utils.py", "my_function") to find where my_function is defined in utils.py.
+    """
+    
+    print(f"DEBUG___get_definition_location")
+    
+    if not lsp_manager.is_running():
+        return "LSP server not running."
+
+    client = lsp_manager.get_client()
+    full_path = workspace_manager.resolve(file_path)
+
+    try:
+        with open(full_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except FileNotFoundError:
+        return f"File not found: {full_path}"
+
+    position = _find_symbol_position(content, symbol)
+    print(f"DEBUG___position: {position}")
+    if not position:
+        return f"Symbol '{symbol}' not found in {file_path}"
+
+    line_no, char_no = position
+    client.open_file(full_path, content)
+
+    result = client.get_definition(full_path, line_no, char_no)
+    print(f"DEBUG___definition result: {result}")
+    if not result:
+        return f"No definition found for '{symbol}'"
+
+    return f"'{symbol}' is defined in {result['file']} at line {result['line']}"
 
 @tool
 @traceable
@@ -14,7 +52,6 @@ def get_file_diagnostics(file_path: str) -> str:
     Returns line numbers and error messages for all issues found.
     Example: get_file_diagnostics("src/tools.py") before applying any diff to tools.py.
     """
-    print(f"DEBUG__get_file_diagnostics called with: {file_path}")
     if not lsp_manager.is_running():
         return "LSP server not running. Set workspace first."
 
@@ -29,13 +66,10 @@ def get_file_diagnostics(file_path: str) -> str:
         return f"File not found: {full_path}"
 
     # Tell LSP server this file is open
-    print(f"DEBUG__content: {content}")  # debug
     client.open_file(full_path, content)
 
     # Get diagnostics
     diagnostics = client.get_diagnostics(full_path)
-    
-    print(f"DEBUG__diagnostics for {full_path}: {diagnostics}")  # debug
 
     if not diagnostics:
         return f"No errors or warnings found in {file_path}"

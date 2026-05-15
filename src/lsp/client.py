@@ -68,7 +68,6 @@ class LSPClient:
             return False
         
     def _read_stderr(self):
-        print("[LSP STDERR THREAD] started")  # add this
         for line in self._process.stderr:
             print(f"[LSP STDERR] {line.decode(errors='replace').strip()}")
 
@@ -166,15 +165,11 @@ class LSPClient:
         body = self._process.stdout.read(content_length)
         return json.loads(body.decode("utf-8"))
 
-    @traceable
+    # @traceable
     def _handle_message(self, message: dict):
-        
-        print(f"[LSP MSG] {message.get('method', 'response')} id={message.get('id')}")
-        print("DEBUG__message", message)
+
         msg_id = message.get("id")
         method = message.get("method", "")
-        
-        print(f"[LSP MSG] method={method} id={msg_id}")  # debug
 
         if msg_id is not None and "result" in message:
             with self._lock:
@@ -187,7 +182,6 @@ class LSPClient:
             params = message.get("params", {})
             uri = params.get("uri", "")
             diagnostics = params.get("diagnostics", [])
-            print(f"[LSP DIAG] uri={uri} count={len(diagnostics)}")  # debug
             self._diagnostics[uri] = diagnostics
             event = self._diagnostic_events.get(uri)
             if event:
@@ -277,10 +271,7 @@ class LSPClient:
             resolved = Path(path).resolve()
 
             if platform.system() == "Windows":
-                print(f"DEBUG__Resolved path 1: {resolved}")
                 return "file:///" + str(resolved).replace("\\", "/")
-
-            print(f"DEBUG__Resolved path 2: {resolved}")
             return resolved.as_uri()
         except Exception:
             # Fallback — direct path use karo
@@ -299,3 +290,34 @@ class LSPClient:
                 "source": d.get("source", "")
             })
         return result
+    
+    def get_definition(self, file_path: str, line: int, character: int) -> dict | None:
+        uri = self._path_to_uri(file_path)
+        result = self._send_request("textDocument/definition", {
+            "textDocument": {"uri": uri},
+            "position": {"line": line - 1, "character": character}
+        })
+        
+        if not result:
+            return None
+        
+        # Result list bhi ho sakta hai
+        if isinstance(result, list):
+            result = result[0] if result else None
+        
+        if not result:
+            return None
+    
+        return {
+            "file": self._uri_to_path(result["uri"]),
+            "line": result["range"]["start"]["line"] + 1,
+            "character": result["range"]["start"]["character"]
+        }
+        
+    def _uri_to_path(self, uri: str) -> str:
+        if uri.startswith("file:///"):
+            path = uri[8:]
+            if platform.system() == "Windows":
+                return path.replace("/", "\\")
+            return "/" + path
+        return uri

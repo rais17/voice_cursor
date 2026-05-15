@@ -55,8 +55,6 @@ def synthesize_to_queue(sentence: str, audio_queue: OrderedAudioQueue, index: in
         return
 
     samples, sr = synthesize_sentence(sentence)
-    # print(f"[TTS] sentence='{sentence}'")  # debug
-
     audio_queue.put(index, samples.astype(np.float32), sr)
 
 

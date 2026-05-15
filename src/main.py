@@ -27,16 +27,12 @@ def fire_tts(sentence: str, audio_queue: queue.Queue, futures: list, sentence_in
 def handle_chat_model_stream(event, token_buffer, full_reply, futures, audio_queue, sentence_index):
     chunk = event["data"]["chunk"]
     token = extract_token(chunk)
-    # print(f"Received token: '{token}'")  # debug
 
     if not token.strip():
         return token_buffer, full_reply, sentence_index
 
     token_buffer += token
     full_reply += token
-    # print(f"token: '{token}'", end="", flush=True)
-    # print(f"\ntoken_buffer: '{token_buffer}'")  # debug
-    # print(f"full_reply: '{full_reply}'")  # debug
 
     # Sentence boundary check
     parts = SENTENCE_END.split(token_buffer, maxsplit=1)
@@ -72,7 +68,7 @@ TOOL_ANNOUNCEMENT_INDEX = -1
 
 def process_tool_event(event, tool_announced, futures, audio_queue, sentence_index):
     tool_name = event["name"]
-    # print(f"\n[Tool: {tool_name}]")
+    print(f"\n[Tool: {tool_name}]")
 
     if not tool_announced:
         fire_tts("Let me check that for you.", audio_queue, futures, TOOL_ANNOUNCEMENT_INDEX)

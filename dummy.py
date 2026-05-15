@@ -21,7 +21,6 @@ def divide_numbers(a, b):
     else:
         raise ValueError('Cannot divide by zero')
 
-
 if __name__ == '__main__':
     num1 = 5
     num2 = 3
