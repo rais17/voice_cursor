@@ -5,37 +5,34 @@ from langchain_core.tools import tool
 from langsmith import traceable
 from src.workspace import workspace_manager
 from src.lsp import lsp_manager
-from src.utils import _find_symbol_position
+from src.utils import _find_definition_file
 
 @tool
-def find_references(file_path: str, symbol: str) -> str:
+def find_references(symbol: str) -> str:
     """
-    Find all places where a function, class, or variable is used across the codebase.
-    Call this before renaming, deleting, or modifying any symbol to understand its impact.
-    Example: find_references("src/lsp/client.py", "open_file")
+    Find all places where a function, class is referenced across the codebase.
+    Call this before renaming, deleting, or modifying any symbol to understand its full impact.
+    Example: find_references("open_file")
     """
-    
     if not lsp_manager.is_running():
         return "LSP server not running."
 
     client = lsp_manager.get_client()
+    workspace = workspace_manager.get()
+
+    definition = _find_definition_file(symbol, workspace)
+    if not definition:
+        return f"Symbol '{symbol}' not found in workspace."
+
+    file_path, line_no, char_no = definition
     full_path = workspace_manager.resolve(file_path)
 
-    try:
-        with open(full_path, "r", encoding="utf-8") as f:
-            content = f.read()
-    except FileNotFoundError:
-        return f"File not found: {full_path}"
+    with open(full_path, 'r', encoding='utf-8') as f:
+        content = f.read()
 
-    position = _find_symbol_position(content, symbol)
-    if not position:
-        return f"Symbol '{symbol}' not found in {file_path}"
-
-    line_no, char_no = position
     client.open_file(full_path, content)
-
-
     refs = client.get_references(full_path, line_no, char_no)
+
     if not refs:
         return f"No references found for '{symbol}'"
 
@@ -44,6 +41,7 @@ def find_references(file_path: str, symbol: str) -> str:
         lines.append(f"  - {r['file']} line {r['line']}")
 
     return "\n".join(lines)
+
 
 # @tool
 # def get_definition_location(file_path: str, symbol: str) -> str:
@@ -277,4 +275,5 @@ tools = [
     get_file_diagnostics,
     get_hover_info,
     # get_definition_location,
+    find_references
 ]
