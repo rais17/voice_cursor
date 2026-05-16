@@ -13,13 +13,14 @@ def _find_symbol_position(content: str, symbol: str) -> tuple[int, int] | None:
         return None
 
     for node in ast.walk(tree):
-        # Function/class definition
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             if node.name == symbol:
-                return node.lineno, node.col_offset
-        # Variable assignment
-        elif isinstance(node, ast.Name):
-            if node.id == symbol:
-                return node.lineno, node.col_offset
+                line = content.splitlines()[node.lineno - 1]
+                char_pos = line.find(node.name)
+                return node.lineno, char_pos
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == symbol:
+                    return target.lineno, target.col_offset
 
     return None

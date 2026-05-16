@@ -1,43 +1,26 @@
-import subprocess, json, time, threading
+# test_lsp.py
+from src.workspace import workspace_manager
+from src.lsp.manager import lsp_manager
 
-proc = subprocess.Popen(
-    ['pylsp'],
-    stdin=subprocess.PIPE,
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE
-)
+# Setup — hamesha chahiye
+workspace_manager.set('D:/PyVoiceCursor')
+lsp_manager.on_workspace_set('D:/PyVoiceCursor')
 
-def read_stdout():
-    while True:
-        chunk = proc.stdout.read(1)
-        if not chunk:
-            break
-        print(chunk.decode(errors='replace'), end='', flush=True)
+import time
+time.sleep(2)  # LSP startup
 
-def read_stderr():
-    for line in proc.stderr:
-        print('[ERR]', line.decode(errors='replace').strip())
+# ========================
+# Test karna ho woh yahan
+# ========================
 
-threading.Thread(target=read_stdout, daemon=True).start()
-threading.Thread(target=read_stderr, daemon=True).start()
+from src.tools import find_references
 
-def send(msg):
-    body = json.dumps(msg).encode()
-    header = f'Content-Length: {len(body)}\r\n\r\n'.encode()
-    proc.stdin.write(header + body)
-    proc.stdin.flush()
-    print(f'[SENT] {msg.get("method", "unknown")}')
+# NOT WORKING — get_definition_location is currently disabled in system prompt
 
-with open(r'D:\PyVoiceCursor\dummy.py', 'r') as f:
-    content = f.read()
+# get_definition_location test
+# result = get_definition_location.func('src/tools/__init__.py', '_find_symbol_position')
+# print("[get_definition_location]", result)
 
-send({'jsonrpc':'2.0','id':1,'method':'initialize','params':{'processId':None,'rootUri':'file:///D:/PyVoiceCursor','capabilities':{'textDocument':{'publishDiagnostics':{}}}}})
-time.sleep(2)
-send({'jsonrpc':'2.0','method':'initialized','params':{}})
-time.sleep(1)
-send({'jsonrpc':'2.0','method':'textDocument/didOpen','params':{'textDocument':{'uri':'file:///D:/PyVoiceCursor/dummy.py','languageId':'python','version':1,'text':content}}})
-time.sleep(1)
-send({'jsonrpc':'2.0','method':'textDocument/didChange','params':{'textDocument':{'uri':'file:///D:/PyVoiceCursor/dummy.py','version':2},'contentChanges':[{'text':content}]}})
-print('[WAITING 10s...]')
-time.sleep(10)
-print('[DONE]')
+# find_references test
+result = find_references.func('src/tools/__init__.py', 'find_references')
+print("[find_references]", result)

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 # from pathlib import Path
 import platform
+from unittest import result
 
 from langsmith import traceable
 
@@ -13,7 +14,6 @@ from langsmith import traceable
 
 class LSPClient:
     """Generic LSP client — works with any language server."""
-
     def __init__(self, server_config):
         self._config = server_config
         self._process = None
@@ -220,8 +220,6 @@ class LSPClient:
         self._diagnostic_events[uri] = event
         self._diagnostics.pop(uri, None)
         
-        print(f"[LSP OPEN] {uri}")
-        
         self._send_notification("textDocument/didOpen", {
             "textDocument": {
                 "uri": uri,
@@ -290,7 +288,7 @@ class LSPClient:
                 "source": d.get("source", "")
             })
         return result
-    
+
     def get_definition(self, file_path: str, line: int, character: int) -> dict | None:
         uri = self._path_to_uri(file_path)
         result = self._send_request("textDocument/definition", {
@@ -307,7 +305,7 @@ class LSPClient:
         
         if not result:
             return None
-    
+
         return {
             "file": self._uri_to_path(result["uri"]),
             "line": result["range"]["start"]["line"] + 1,
@@ -321,3 +319,26 @@ class LSPClient:
                 return path.replace("/", "\\")
             return "/" + path
         return uri
+
+    def get_references(self, file_path: str, line: int, character: int) -> list[dict]:
+        uri = self._path_to_uri(file_path)
+        result = self._send_request("textDocument/references", {
+            "textDocument": {"uri": uri},
+            "position": {"line": line - 1, "character": character},
+            "context": {"includeDeclaration": True}
+        })
+        
+        
+        print(f"[REF] raw result: {result}")  # add karo
+        
+        if not result:
+            return []
+        
+        return [
+            {
+                "file": self._uri_to_path(r["uri"]),
+                "line": r["range"]["start"]["line"] + 1,
+                "character": r["range"]["start"]["character"]
+            }
+            for r in result
+        ]

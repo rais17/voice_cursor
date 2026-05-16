@@ -1,5 +1,6 @@
 import os
 import subprocess
+from time import time
 from langchain_core.tools import tool
 from langsmith import traceable
 from src.workspace import workspace_manager
@@ -7,14 +8,12 @@ from src.lsp import lsp_manager
 from src.utils import _find_symbol_position
 
 @tool
-def get_definition_location(file_path: str, symbol: str) -> str:
+def find_references(file_path: str, symbol: str) -> str:
     """
-    Find exactly where a function, class, or variable is defined.
-    MUST be called before modifying any symbol to locate its source file and line.
-    Example: get_definition_location("src/tools/__init__.py", "_find_symbol_position")
+    Find all places where a function, class, or variable is used across the codebase.
+    Call this before renaming, deleting, or modifying any symbol to understand its impact.
+    Example: find_references("src/lsp/client.py", "open_file")
     """
-    
-    print(f"DEBUG___get_definition_location")
     
     if not lsp_manager.is_running():
         return "LSP server not running."
@@ -29,19 +28,59 @@ def get_definition_location(file_path: str, symbol: str) -> str:
         return f"File not found: {full_path}"
 
     position = _find_symbol_position(content, symbol)
-    print(f"DEBUG___position: {position}")
     if not position:
         return f"Symbol '{symbol}' not found in {file_path}"
 
     line_no, char_no = position
     client.open_file(full_path, content)
 
-    result = client.get_definition(full_path, line_no, char_no)
-    print(f"DEBUG___definition result: {result}")
-    if not result:
-        return f"No definition found for '{symbol}'"
 
-    return f"'{symbol}' is defined in {result['file']} at line {result['line']}"
+    refs = client.get_references(full_path, line_no, char_no)
+    if not refs:
+        return f"No references found for '{symbol}'"
+
+    lines = [f"'{symbol}' is referenced in {len(refs)} place(s):"]
+    for r in refs:
+        lines.append(f"  - {r['file']} line {r['line']}")
+
+    return "\n".join(lines)
+
+# @tool
+# def get_definition_location(file_path: str, symbol: str) -> str:
+#     """
+#     Find exactly where a function, class, or variable is defined.
+#     MUST be called before modifying any symbol to locate its source file and line.
+#     Example: get_definition_location("src/tools/__init__.py", "_find_symbol_position")
+#     """
+    
+#     print(f"DEBUG___get_definition_location")
+    
+#     if not lsp_manager.is_running():
+#         return "LSP server not running."
+
+#     client = lsp_manager.get_client()
+#     full_path = workspace_manager.resolve(file_path)
+
+#     try:
+#         with open(full_path, "r", encoding="utf-8") as f:
+#             content = f.read()
+#     except FileNotFoundError:
+#         return f"File not found: {full_path}"
+
+#     position = _find_symbol_position(content, symbol)
+#     print(f"DEBUG___position: {position}")
+#     if not position:
+#         return f"Symbol '{symbol}' not found in {file_path}"
+
+#     line_no, char_no = position
+#     client.open_file(full_path, content)
+
+#     result = client.get_definition(full_path, line_no, char_no)
+#     print(f"DEBUG___definition result: {result}")
+#     if not result:
+#         return f"No definition found for '{symbol}'"
+
+#     return f"'{symbol}' is defined in {result['file']} at line {result['line']}"
 
 @tool
 @traceable
@@ -237,5 +276,5 @@ tools = [
     get_workspace,
     get_file_diagnostics,
     get_hover_info,
-    get_definition_location
+    # get_definition_location,
 ]
