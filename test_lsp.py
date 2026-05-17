@@ -19,7 +19,7 @@ from src.tools import find_references
 # print("[get_definition_location]", result)
 
 # find_references test
-result = find_references.func('tree')
+result = find_references('open_file')
 print("[find_references]", result)
 
 # test_lsp.py mein add karo
